@@ -1,1 +1,297 @@
-# IthakaSnake.github.io
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    #h1 {
+	  position: absolute;
+	  left:820px;
+	  top: 0px;
+	  text-decoration-line: underline;
+	  color: Green;
+	}
+	#h2 {
+	  position: absolute;
+	  left:820px;
+	  top: 40px;
+	}
+	#h2h2 {
+	  position: absolute;
+	  left:820px;
+	  top: 130px;
+	}
+	#pp {
+	  position: absolute;
+	  left:820px;
+	  top: 160px;
+	}
+	#p {
+	  position: absolute;
+	  left:820px;
+	  top: 70px;
+	}
+	#canvas {
+	  position: absolute;
+	  left: 10px;
+	  top: 10px;
+	}
+  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>Snake!</title>
+</head>
+<body>
+  <h1 id="h1">Snake</h1>
+  <h2 id="h2">Doel</h2>
+  <p id="p">Het doel is om de rode appel op te eten, dan gaat je score 1 omhoog. <br>
+  Bij elke 10 punten ga je een level omhoog. <br>
+  Wat is jouw highscore?</p>
+  <h2 id="h2h2">Hoe te spelen</h2>
+  <p id="pp">Je bent de slang,<br>
+  bewegen doe je met de pijltjestoetsen, <br>
+  als het niet lijkt te werken moet je een keer op het scherm klicken<br>
+  Als je tegen de rand aankomt of tegen jezelf ben je af.<br>
+  Als je nog een keer wilt spelen, laad de pagina dan opnieuw.
+  </p>
+  
+  <script src="https://code.jquery.com/jquery-2.1.0.js"></script>
+  <canvas id="canvas" width="800" height="800"></canvas>
+  <script>
+    //Canvas einrichten
+    var canvas = document.getElementById("canvas");
+	var context = canvas.getContext("2d");
+	
+	//Breite und Höhe des canvas-Elements
+	var breite = canvas.width;
+	var hoehe = canvas.height;
+	
+	//Breite und Höhe in Blöcken definieren
+	var blockGroesse = 10;
+	var breiteInBloecken = breite / blockGroesse;
+	var hoeheInBloecken = hoehe / blockGroesse;
+	
+	//Punktestand auf 0 setzen
+	var punktestand = 0;
+	
+	//CurrentLevel auf 1 setzen und currentLevelStatus auf 0 setzen.
+    var currentLevel = 1;
+    var currentLevelStatus = 0;
+    
+	//Ausfinden, ob man das Level geschaft hat.
+    var currentLevelFindOut = function () {
+      if (currentLevelStatus === 10) {
+        currentLevelStatus = 1;
+        currentLevel++;
+      }
+    };
+	
+	
+	//Den Rahmen zeichnen
+	var rahmenZeichnen = function () {
+	    context.fillStyle = "Gray";
+	    context.fillRect(0, 0, breite, blockGroesse);
+        context.fillRect(0, hoehe - blockGroesse, breite, blockGroesse);
+      	context.fillRect(0, 0, blockGroesse, hoehe);
+        context.fillRect(breite - blockGroesse, 0, blockGroesse, hoehe);
+    };
+    
+    //Den Punktestand in der linken oberen Ecke anzeigen
+    var punktstandZeichnen = function () {
+      context.font = "20px Courier";
+      context.fillStyle = "Black";
+      context.textAlign = "links";
+      context.textBaseline = "top";
+      context.fillText("Score: "+ punktestand, blockGroesse, blockGroesse);
+      context.fillText("Level: " + currentLevel, blockGroesse, blockGroesse + 20)
+    };
+    
+    //Intervall und Game-Over-Text
+	var gameOver = function () {
+	    clearInterval(intervalId);
+		context.font = "60px Courier";
+		context.fillStyle = "Black";
+		context.textAlign = "center";
+		context.textBaseline = "middle";
+		context.fillText("Game Over", breite / 2, hoehe / 2);
+		context.font = "20px Courier";
+        context.fillStyle = "Black";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillText("Jouw score was : "+ punktestand, breite / 2, hoehe / 2 + 40);
+		context.fillText("Jouw totaal score was : "+ (punktestand * currentLevel), breite / 2, hoehe / 2 + 60);
+	};
+    
+    
+      
+    //Der Block-Konstruktor
+    var Block = function (spalte, zeile) {
+      this.spalte = spalte;
+      this.zeile = zeile;
+    };
+
+    //Ein Quadrat an der Position des Blocks zeichnen
+    Block.prototype.quadratZeichnen = function (farbe) {
+      var x = this.spalte * blockGroesse;
+      var y = this.zeile * blockGroesse;
+      context.fillStyle = farbe;
+      context.fillRect(x, y, blockGroesse, blockGroesse);
+    };
+      
+    //Einen Kreis an der Position des Blocks zeichnen
+    Block.prototype.kreisZeichnen = function (farbe) {
+      var mittelpunktX = this.spalte * blockGroesse + blockGroesse / 2;
+      var mittelpunktY = this.zeile * blockGroesse + blockGroesse / 2;
+      context.fillStyle = "Red";
+	  context.beginPath();
+      context.arc(mittelpunktX, mittelpunktY, blockGroesse / 2, Math.PI * 2, false);
+	  context.fill();
+    };
+      
+    //Prüfen, ob sich dieser Block an derselben Position wie ein anderer Block befindet
+    Block.prototype.equal = function (andererBlock) {
+      return this.spalte === andererBlock.spalte && this.zeile === andererBlock.zeile;
+    };
+      
+    //Der Schlangen-Konstruktor
+      var Schlange = function () {
+        this.segmente = [
+          new Block(7, 5),
+          new Block(6, 5),
+          new Block(5, 5)
+        ];
+        
+        this.richtung = "rechts";
+        this.naechsteRichtung = "rechts";
+      };
+      
+      //Ein Quadrat für jedes Segment des Schlangenkörpers zeichnen
+      Schlange.prototype.draw = function () {
+        for (var i = 0; i < this.segmente.length; i++) {
+		if(i===0) {
+		  this.segmente[i].quadratZeichnen("Cyan")
+		  } else {
+		  this.segmente[i].quadratZeichnen("Blue");
+		  }
+		
+		  
+        }
+      };
+      
+      //Einen neuen Kopf erzeugen und ihn am Anfang de Schlange in de aktuellen Richtung hinzufügen
+      Schlange.prototype.move = function () {
+        var kopf = this.segmente[0];
+        var neuerKopf;
+        
+        this.richtung = this.naechsteRichtung;
+        
+        if (this.richtung === "rechts") {
+          neuerKopf = new Block(kopf.spalte + 1, kopf.zeile);
+        } else if (this.richtung === "runter") {
+          neuerKopf = new Block(kopf.spalte, kopf.zeile + 1);
+        } else if (this.richtung === "links") {
+          neuerKopf = new Block(kopf.spalte - 1, kopf.zeile);
+        } else if (this.richtung === "hoch") {
+          neuerKopf = new Block(kopf.spalte, kopf.zeile - 1);
+        }
+        
+        if (this.kollisionCheck(neuerKopf)) {
+          gameOver();
+          return;
+        }
+        
+        this.segmente.unshift(neuerKopf);
+        
+        if (neuerKopf.equal(apfel.position)) {
+          punktestand++;
+		  apfel.move();
+          currentLevelStatus++;
+        } else {
+          this.segmente.pop();
+        }
+      };
+      
+      //Prüfen, ob de neue Kopf der Schlange mit der Wand oder mit der Schlange selbst kollidiert ist
+      Schlange.prototype.kollisionCheck = function (kopf) {
+        var kollisionLinks = (kopf.spalte === 0);
+        var kollisionOben = (kopf.zeile === 0);
+        var kollisionRechts = (kopf.spalte === breiteInBloecken - 1);
+        var kollisionUnten = (kopf.zeile === hoeheInBloecken - 1);
+        
+        var kollisionWand = kollisionLinks || kollisionOben || kollisionRechts || kollisionUnten;
+        
+        var kollisionSelbst = false;
+        
+        for (var i = 0; i < this.segmente.length; i++) {
+          if (kopf.equal(this.segmente[i])) {
+            kollisionSelbst = true;
+          }
+        }
+        return kollisionWand || kollisionSelbst;
+      };
+      
+      //Die nächste Richtung der Schlange festlegen
+      Schlange.prototype.setDirection = function (neueRichtung) {
+        if (this.richtung === "hoch" && neueRichtung === "runter") {
+          return;
+        } else if (this.richtung === "rechts" && neueRichtung === "links") {
+          return;
+        } else if (this.richtung === "runter" && neueRichtung === "hoch") {
+          return;
+        } else if (this.richtung === "links" && neueRichtung === "rechts") {
+          return;
+        }
+        
+        this.naechsteRichtung = neueRichtung;
+      };
+      
+      //Der Apfel-Konstruktor
+      var Apfel = function () {
+        this.position = new Block (10, 10)
+      };
+      
+      //Ein Kreis an der Position des Apfels Zeichnen
+      Apfel.prototype.draw = function () {
+        this.position.kreisZeichnen()
+      };
+      
+      //Den Apfel an eine neue Position verschieben
+      Apfel.prototype.move = function () {
+        var zufallSpalte = Math.floor(Math.random() * (breiteInBloecken - 2)) + 1;
+        var zufallZeile = Math.floor(Math.random() * (hoeheInBloecken - 2)) + 1;
+        this.position = new Block(zufallSpalte, zufallZeile);
+      };
+      
+      //Schlangen- und Apfel-Objekte erzeugen
+       var schlange = new Schlange();
+       var apfel = new Apfel();
+      
+      //Eine Animationsfunktion an setInterval übergeben
+      var intervalId = setInterval(function () {
+        context.clearRect(0, 0, breite, hoehe);
+        punktstandZeichnen();
+        schlange.move();
+        schlange.draw();
+        apfel.draw();
+        rahmenZeichnen();
+        currentLevelFindOut();
+      }, 100);
+      
+      //Tastaturcodes in Richtungen konvertieren
+      var richtungen = {
+        37: "links",
+        38: "hoch",
+        39: "rechts",
+        40: "runter"
+      };
+      
+      //Der keydown-Handler für die Richtungstasten
+      $("body").keydown(function (event) {
+        var neueRichtung = richtungen[event.keyCode];
+        if (neueRichtung !== undefined) {
+          schlange.setDirection(neueRichtung)
+        }
+      });
+  </script>
+</body>
+</html>
+
+
